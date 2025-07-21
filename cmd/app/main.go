@@ -10,18 +10,22 @@ import (
 	"syscall"
 
 	"marketplace/config"
+	_ "marketplace/docs"
+	"marketplace/internal/database"
 	"marketplace/internal/logger"
+	"marketplace/internal/server"
 	"marketplace/migrations"
-	"marketplace/pkg/database"
-	"marketplace/pkg/server"
 )
 
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 func main() {
-	cfg := config.MustLoad()
+	cfg := config.LoadConfig()
 	slogger.SetLogger(cfg.AppEnv)
 
 	db := database.New(cfg.GetDBURL())
-	migrations.Migrate()
+	migrations.Migrate(cfg.GetDBURL())
 
 	srv := server.NewGinServer(cfg, db)
 	go func() {

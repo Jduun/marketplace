@@ -11,7 +11,7 @@ create table advertisements (
     id uuid primary key default uuid_generate_v4(),
     title text not null,
     content text not null,
-    image_url text,
+    image_url text not null,
     price numeric(11, 2) not null,
     user_id uuid not null,
     created_at timestamp not null default now(),

@@ -1,9 +1,8 @@
 package migrations
 
 import (
+	"errors"
 	"log"
-
-	"marketplace/config"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -11,17 +10,17 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/github"
 )
 
-func Migrate() {
+func Migrate(DBURL string) {
 	m, err := migrate.New(
 		"file://migrations",
-		config.Cfg.GetDBURL(),
+		DBURL,
 	)
 	if err != nil {
 		log.Fatalf("Migration error: %s", err)
 	}
 
 	err = m.Up()
-	if err != nil && err != migrate.ErrNoChange {
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		log.Fatalf("Migration error: %s", err)
 	}
 }

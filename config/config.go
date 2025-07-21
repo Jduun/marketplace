@@ -2,8 +2,7 @@ package config
 
 import (
 	"fmt"
-	"log"
-	"sync"
+	"log/slog"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
@@ -29,19 +28,11 @@ const (
 	Prod  AppEnv = "prod"
 )
 
-var (
-	once sync.Once
-	Cfg  *Config
-)
-
-func MustLoad() *Config {
-	once.Do(func() {
-		Cfg = &Config{}
-		if err := cleanenv.ReadEnv(Cfg); err != nil {
-			log.Fatalf("Cannot read .env file: %s", err)
-		}
-		fmt.Println(fmt.Sprintf("APP_PORT: %s", Cfg.AppPort))
-	})
+func LoadConfig() *Config {
+	Cfg := &Config{}
+	if err := cleanenv.ReadEnv(Cfg); err != nil {
+		slog.Error("Cannot read .env file: %s", slog.Any("error", err))
+	}
 	return Cfg
 }
 
