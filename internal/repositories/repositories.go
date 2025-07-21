@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 
 	"marketplace/internal/entities"
 )
@@ -16,6 +17,5 @@ type UserRepository interface {
 
 type AdvertisementRepository interface {
 	CreateAdvertisement(ctx context.Context, advertisement *entities.Advertisement) error
-	GetAdvertisementByID(ctx context.Context, id uuid.UUID) (*entities.Advertisement, error)
-	GetAdvertisements(ctx context.Context, offset, limit int) ([]*entities.Advertisement, error)
+	GetAdvertisements(ctx context.Context, offset, limit int, minPrice, maxPrice *decimal.Decimal, sortType, sortOrder *string) ([]*entities.Advertisement, error)
 }

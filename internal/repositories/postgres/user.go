@@ -7,12 +7,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"marketplace/internal/entities"
-	"marketplace/internal/repositories"
-	"marketplace/pkg/database"
-
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+
+	"marketplace/internal/database"
+	"marketplace/internal/entities"
+	"marketplace/internal/repositories"
 )
 
 type UserPostgresRepository struct {
@@ -24,12 +24,12 @@ func NewUserPostgresRepository(db *database.PostgresDatabase) repositories.UserR
 }
 
 func (r *UserPostgresRepository) CreateUser(ctx context.Context, user *entities.User) error {
-	sql := `
+	query := `
 		insert into users (login, password) 
 		values ($1, $2)
 		returning *`
 	err := r.db.Pool.
-		QueryRow(ctx, sql, user.Login, user.Password).
+		QueryRow(ctx, query, user.Login, user.Password).
 		Scan(&user.ID, &user.Login, &user.Password, &user.CreatedAt)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -44,13 +44,13 @@ func (r *UserPostgresRepository) CreateUser(ctx context.Context, user *entities.
 }
 
 func (r *UserPostgresRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*entities.User, error) {
-	sql := `
+	query := `
 		select *
 		from users
 		where id = $1`
 	var user entities.User
 	err := r.db.Pool.
-		QueryRow(ctx, sql, id).
+		QueryRow(ctx, query, id).
 		Scan(&user.ID, &user.Login, &user.Password, &user.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -62,13 +62,13 @@ func (r *UserPostgresRepository) GetUserByID(ctx context.Context, id uuid.UUID) 
 }
 
 func (r *UserPostgresRepository) GetUserByLogin(ctx context.Context, login string) (*entities.User, error) {
-	sql := `
+	query := `
 		select *
 		from users
 		where login = $1`
 	var user entities.User
 	err := r.db.Pool.
-		QueryRow(ctx, sql, login).
+		QueryRow(ctx, query, login).
 		Scan(&user.ID, &user.Login, &user.Password, &user.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

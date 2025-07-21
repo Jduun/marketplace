@@ -8,12 +8,13 @@ import (
 )
 
 type Advertisement struct {
-	ID        uuid.UUID       `db:"id"`
-	Title     string          `db:"title"`
-	Content   string          `db:"content"`
-	ImageURL  string          `db:"image_url"`
-	Price     decimal.Decimal `db:"price"`
-	UserID    uuid.UUID       `db:"user_id"`
-	CreatedAt time.Time       `db:"created_at"`
-	UpdatedAt time.Time       `db:"updated_at"`
+	ID          uuid.UUID       `db:"id"`
+	Title       string          `db:"title"`
+	Content     string          `db:"content"`
+	ImageURL    string          `db:"image_url"`
+	Price       decimal.Decimal `db:"price"`
+	UserID      uuid.UUID       `db:"user_id"`
+	AuthorLogin string          `db:"author_login"`
+	CreatedAt   time.Time       `db:"created_at"`
+	UpdatedAt   time.Time       `db:"updated_at"`
 }

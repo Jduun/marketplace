@@ -1,6 +1,7 @@
 package slogger
 
 import (
+	"context"
 	"log/slog"
 	"os"
 
@@ -31,4 +32,11 @@ func SetLogger(env config.AppEnv) {
 		}))
 	}
 	slog.SetDefault(defaultLogger)
+}
+
+func GetLoggerFromContext(ctx context.Context) *slog.Logger {
+	if logger, ok := ctx.Value("Logger").(*slog.Logger); ok {
+		return logger
+	}
+	return slog.Default()
 }

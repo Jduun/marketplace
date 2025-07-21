@@ -10,6 +10,8 @@ var (
 	ErrCannotFindUser     = errors.New("cannot find user")
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrCannotSignToken    = errors.New("cannot sign token")
-	ErrInvalidToken       = errors.New("invalid token")
 	ErrCannotLoginUser    = errors.New("cannot login user")
+
+	ErrCannotCreateAdvertisement = errors.New("cannot create advertisement")
+	ErrCannotGetAdvertisements   = errors.New("cannot get advertisements")
 )

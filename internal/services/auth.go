@@ -3,11 +3,12 @@ package services
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
 
-	"marketplace/config"
 	"marketplace/internal/dto"
 	"marketplace/internal/entities"
+	slogger "marketplace/internal/logger"
 	"marketplace/internal/repositories"
 
 	"github.com/golang-jwt/jwt"
@@ -16,20 +17,28 @@ import (
 )
 
 type AuthServiceImpl struct {
-	userRepository repositories.UserRepository
-	cfg            *config.Config
+	userRepository  repositories.UserRepository
+	tokenTTLMinutes time.Duration
+	JWTSecret       string
 }
 
-func NewAuthServiceImpl(userRepository repositories.UserRepository, cfg *config.Config) AuthService {
+func NewAuthServiceImpl(userRepository repositories.UserRepository, tokenTTLMinutes time.Duration, JWTSecret string) AuthService {
 	return &AuthServiceImpl{
-		userRepository: userRepository,
-		cfg:            cfg,
+		userRepository:  userRepository,
+		tokenTTLMinutes: tokenTTLMinutes,
+		JWTSecret:       JWTSecret,
 	}
 }
 
 func (s *AuthServiceImpl) CreateUser(ctx context.Context, userData *dto.UserCreateRequest) (*dto.UserResponse, error) {
+	logger := slogger.GetLoggerFromContext(ctx).
+		With(slog.String("op", "services.advertisement.CreateAdvertisement"))
+
+	logger.Info("Creating user", slog.String("login", userData.Login))
+
 	hashedPasswordBytes, err := bcrypt.GenerateFromPassword([]byte(userData.Password), bcrypt.DefaultCost)
 	if err != nil {
+		logger.Error("Password hashing failed", slog.Any("error", err))
 		return nil, ErrPasswordHashing
 	}
 	hashedPassword := string(hashedPasswordBytes)
@@ -39,6 +48,7 @@ func (s *AuthServiceImpl) CreateUser(ctx context.Context, userData *dto.UserCrea
 	}
 	err = s.userRepository.CreateUser(ctx, &createdUser)
 	if err != nil {
+		logger.Error("User creation failed", slog.Any("error", err))
 		if errors.Is(err, repositories.ErrAlreadyExists) {
 			return nil, ErrUserAlreadyExists
 		} else if errors.Is(err, repositories.ErrNotFound) {
@@ -47,6 +57,9 @@ func (s *AuthServiceImpl) CreateUser(ctx context.Context, userData *dto.UserCrea
 			return nil, ErrCannotCreateUser
 		}
 	}
+
+	logger.Info("User created successfully", slog.String("userID", createdUser.ID.String()))
+
 	return &dto.UserResponse{
 		ID:        createdUser.ID,
 		Login:     createdUser.Login,
@@ -55,8 +68,14 @@ func (s *AuthServiceImpl) CreateUser(ctx context.Context, userData *dto.UserCrea
 }
 
 func (s *AuthServiceImpl) LoginUser(ctx context.Context, userData *dto.LoginUserRequest) (string, error) {
+	logger := slogger.GetLoggerFromContext(ctx).
+		With(slog.String("op", "services.auth.LoginUser"))
+
+	logger.Info("Attempting login", slog.String("login", userData.Login))
+
 	user, err := s.userRepository.GetUserByLogin(ctx, userData.Login)
 	if err != nil {
+		logger.Error("User lookup failed", slog.Any("error", err))
 		if errors.Is(err, repositories.ErrNotFound) {
 			return "", ErrCannotFindUser
 		} else {
@@ -65,48 +84,46 @@ func (s *AuthServiceImpl) LoginUser(ctx context.Context, userData *dto.LoginUser
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(userData.Password))
 	if err != nil {
+		logger.Warn("Invalid credentials", slog.String("login", userData.Login))
 		return "", ErrInvalidCredentials
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": user.ID,
-		"iat": time.Now().Unix(),
-		"exp": time.Now().Add(time.Minute * time.Duration(s.cfg.TokenTTLMinutes)).Unix(),
+		"sub":   user.ID,
+		"login": user.Login,
+		"iat":   time.Now().Unix(),
+		"exp":   time.Now().Add(time.Minute * s.tokenTTLMinutes).Unix(),
 	})
-	tokenString, err := token.SignedString([]byte(s.cfg.JWTSecret))
+	tokenString, err := token.SignedString([]byte(s.JWTSecret))
 	if err != nil {
+		logger.Error("Token signing failed", slog.Any("error", err))
 		return "", ErrCannotSignToken
 	}
+
+	logger.Info("User logged in successfully", slog.String("userID", user.ID.String()))
+
 	return tokenString, nil
 }
 
 func (s *AuthServiceImpl) GetUserByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse, error) {
+	logger := slogger.GetLoggerFromContext(ctx).
+		With(slog.String("op", "services.auth.GetUserByID"))
+
+	logger.Info("Fetching user by ID", slog.String("userID", id.String()))
+
 	user, err := s.userRepository.GetUserByID(ctx, id)
 	if err != nil {
+		logger.Error("User fetch failed", slog.Any("error", err))
 		if errors.Is(err, repositories.ErrNotFound) {
 			return nil, ErrUserNotFound
 		}
 		return nil, ErrCannotFindUser
 	}
+
+	logger.Info("User fetched successfully", slog.String("userID", user.ID.String()))
+
 	return &dto.UserResponse{
 		ID:        user.ID,
 		Login:     user.Login,
 		CreatedAt: user.CreatedAt,
 	}, nil
-}
-
-func (s *AuthServiceImpl) ParseToken(tokenString string) (uuid.UUID, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(config.Cfg.JWTSecret), nil
-	})
-	if err != nil {
-		return uuid.Nil, ErrInvalidToken
-	}
-	if claims, ok := token.Claims.(*jwt.MapClaims); ok && token.Valid {
-		userID, err := uuid.Parse((*claims)["sub"].(string))
-		if err != nil {
-			return uuid.Nil, ErrInvalidToken
-		}
-		return userID, nil
-	}
-	return uuid.Nil, ErrInvalidToken
 }
